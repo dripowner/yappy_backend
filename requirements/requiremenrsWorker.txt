@@ -5,5 +5,3 @@ pandas
 pydantic
 fastapi
 fastapi-users[sqlalchemy]
-transformers
-aioboto3

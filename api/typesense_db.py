@@ -11,7 +11,7 @@ class TypesenseService:
         self.client = typesense.Client({
             'api_key': 'xyz',
             'nodes': [{
-                'host': 'localhost',
+                'host': 'typesense',
                 'port': '8108',
                 'protocol': 'http'
             }],

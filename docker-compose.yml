@@ -32,34 +32,16 @@ services:
         build:
             dockerfile: Dockerfiles/DockerfileApi
         # restart: unless-stopped
-        # links:
-        #     - "asset-server:server.com"
         ports:
             - "9080:9080"
         environment:
             PORT: 9080
         depends_on:
-            postgres:
+            typesense:
                 condition: service_healthy
             redis:
                 condition: service_healthy
         command: gunicorn --conf api/gunicorn_conf.py -b 0.0.0.0:9080 -k uvicorn.workers.UvicornWorker api.main:app
-
-    postgres:
-        image: postgres:16
-        environment:
-            POSTGRES_USER: analyze_document
-            POSTGRES_PASSWORD: analyze_document
-            POSTGRES_DB: analyze_document
-        volumes:
-            - ./postgres:/var/lib/postgresql/data
-        healthcheck:
-            test: [ "CMD", "pg_isready", "-U", "analyze_document" ]
-            interval: 10s
-            timeout: 4s
-            retries: 5
-            start_period: 1s
-        restart: always
 
     worker:
         build:

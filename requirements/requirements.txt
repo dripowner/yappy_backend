@@ -13,6 +13,5 @@ apscheduler
 Jinja2 
 numpy
 python-multipart
-aioboto3
 requests
 typesense
