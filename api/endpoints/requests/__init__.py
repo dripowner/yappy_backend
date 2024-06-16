@@ -1,3 +1,11 @@
+import uuid
+import arq.jobs
+from fastapi import Depends, APIRouter, HTTPException, Response, status,  UploadFile, File
+from pydantic import BaseModel, field_validator
+from sqlalchemy import select
+from datetime import date, datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+from api.Asyncrq import asyncrq
 from fastapi_limiter.depends import RateLimiter
 from arq.jobs import Job
 import arq
@@ -17,26 +25,9 @@ router = APIRouter(
 async def search_info_by_prompt(
     prompt: str,
 ):
-    #Search
-
-    videos_collect: Collection = client.collections['videos']
-
-    result_json = videos_collect.documents.search({
-        'q': prompt,
-        'query_by': description,
-        },
-        {
-        'q': prompt,
-        'query_by': content,
-        }
-    )
-
-    for item in result_json:
-        if item['status'] == 'done':
-            return {
-            "url": item['url'],
-            "details": ""
-            }
+    # Search
+    result_json = TypesenseService.search_videos_by_promts(prompt)
+    return result_json
 
 
 @router.get(

@@ -78,3 +78,15 @@ class TypesenseService:
 
         print("\n\nsearch res", res)
         return res
+
+    def search_videos_by_promts(self, prompt: str):
+        videos_collect: Collection = self.client.collections['videos']
+
+        result_json = videos_collect.documents.search(
+            {
+                'q': prompt,
+                'query_by': ["description", "content"],
+                'filter_by': 'status:=Done'
+            },
+        )
+        return result_json
