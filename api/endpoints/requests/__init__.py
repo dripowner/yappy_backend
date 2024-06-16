@@ -44,11 +44,7 @@ async def get_request_info_by_url(
     service = TypesenseService()
     results = service.search(url, 'videos', 'url')
     print(results)
-    results = ""
-    return {
-        "url": url,
-        "results": results
-    }
+    return results
 
 
 @router.post(
@@ -68,10 +64,11 @@ async def analyze_url_request(
         "interval_type": "",
         "content": [],
         "start_stop_interval": [],
-        "status": "In_progress"
+        "status": "In progress"
     }
 
-    service.add_videos(video_data)
+    res = service.add_videos(video_data)
+    print(res)
 
     job = await asyncrq.pool.enqueue_job(
         function="analyze_requests",

@@ -28,7 +28,8 @@ async def analyze_requests(
         "content": ["some text", "some ocr text"],
         "interval_type": "video",
         "content": ["content segment 1", "content segment 2"],
-        "start_stop_interval": ["00:00:00-00:02:00", "00:05:00-00:07:00"]
+        "start_stop_interval": ["00:00:00-00:02:00", "00:05:00-00:07:00"],
+        "status": "Done"
     }
     results = db.update_videos(
         video_data, {'filter_by': f'url:={url} && description:={description}'})

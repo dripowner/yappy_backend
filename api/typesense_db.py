@@ -28,9 +28,16 @@ class TypesenseService:
                     {"name": "description", "type": "string"},
                     {"name": "content", "type": "string[]"},
                     {"name": "start_stop_interval", "type": "string[]"},
+                    {"name": "status", "type": "string"},
                 ],
             })
         except Exception as e:
+            # # TODO: This drop all data after reboot
+            # try:
+            #     self.client.collections['videos'].delete()
+            #     self.create_collections()
+            # except Exception as e:
+            #     pass
             pass
 
     def retrieve_videos_collection(self):
