@@ -17,7 +17,7 @@ router = APIRouter(
 
 
 @router.get(
-    "/status/{req_id}",
+    "/search/{prompt}",
     status_code=status.HTTP_200_OK,
 )
 async def search_info_by_prompt(
@@ -33,7 +33,7 @@ async def search_info_by_prompt(
 
 
 @router.get(
-    "/status/{req_id}",
+    "/status/",
     status_code=status.HTTP_200_OK,
 )
 async def get_request_info_by_url(

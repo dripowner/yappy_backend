@@ -19,16 +19,19 @@ class TypesenseService:
         })
 
     def create_collections(self):
-        return self.client.collections.create({
-            "name": "videos",
-            "fields": [
-                {"name": "url", "type": "string"},
-                {"name": "interval_type", "type": "string"},
-                {"name": "description", "type": "string"},
-                {"name": "content", "type": "string[]"},
-                {"name": "start_stop_interval", "type": "string[]"},
-            ],
-        })
+        try:
+            self.client.collections.create({
+                "name": "videos",
+                "fields": [
+                    {"name": "url", "type": "string"},
+                    {"name": "interval_type", "type": "string"},
+                    {"name": "description", "type": "string"},
+                    {"name": "content", "type": "string[]"},
+                    {"name": "start_stop_interval", "type": "string[]"},
+                ],
+            })
+        except Exception as e:
+            pass
 
     def retrieve_videos_collection(self):
         retrieve_response = self.client.collections['videos'].retrieve()

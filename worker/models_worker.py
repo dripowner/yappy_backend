@@ -2,7 +2,6 @@ import json
 from typing import Dict, Any
 
 from sqlalchemy import select
-from worker.models.text_classification_hackaton import Model
 from sqlalchemy.exc import NoResultFound
 # from api.s3 import s3
 import traceback

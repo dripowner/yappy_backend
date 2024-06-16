@@ -38,7 +38,7 @@ services:
             PORT: 9080
         depends_on:
             typesense:
-                condition: service_healthy
+                condition: service_started
             redis:
                 condition: service_healthy
         command: gunicorn --conf api/gunicorn_conf.py -b 0.0.0.0:9080 -k uvicorn.workers.UvicornWorker api.main:app
