@@ -20,33 +20,42 @@ async def analyze_requests(
     description: str,
     **kwargs: Any,
 ):
-    db = TypesenseService()
+    try:
+        db = TypesenseService()
 
-    video_intervals = caption_instance.shot_transit(url)
-    # # Mock Data
-    # video_intervals = [
-    #     {
-    #         "interval": "0:12:6",
-    #         "caption": "Caption Text",
-    #         "ocr": "ocr Text",
-    #         "obj": "obj Text"
-    #     }
-    # ]
+        video_intervals = caption_instance.shot_transit(url)
+        # # Mock Data
+        # video_intervals = [
+        #     {
+        #         "interval": "0:12:6",
+        #         "caption": "Caption Text",
+        #         "ocr": "ocr Text",
+        #         "obj": "obj Text"
+        #     }
+        # ]
 
-    output_item = process_video_results(url, description, video_intervals)
-    db.update_videos(
-        output_item, {'filter_by': f'url:={url} && description:={description}'})
+        output_item = process_video_results(url, description, video_intervals)
+        db.update_videos(
+            output_item, {'filter_by': f'url:={url} && description:={description}'})
 
-    audio_intervals = transcribe_instance.audio_recognition(url)
-    # # Mock Data
-    # audio_intervals = [
-    #     {
-    #         "end_interval": "0:12:6",
-    #         "text": "transcribation text"
-    #     }
-    # ]
-    output_item = process_audio_results(url, description, audio_intervals)
-    db.add_videos(output_item)
+        audio_intervals = transcribe_instance.audio_recognition(url)
+        # # Mock Data
+        # audio_intervals = [
+        #     {
+        #         "end_interval": "0:12:6",
+        #         "text": "transcribation text"
+        #     }
+        # ]
+        output_item = process_audio_results(url, description, audio_intervals)
+        db.add_videos(output_item)
+    except Exception as e:
+        output_item = {
+            "url": url,
+            "description": description,
+            "status": f'Error: {e}',
+        }
+        db.update_videos(
+            output_item, {'filter_by': f'url:={url} && description:={description}'})
 
 
 def process_video_results(url, description, video_intervals):
