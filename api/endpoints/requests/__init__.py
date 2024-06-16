@@ -26,7 +26,8 @@ async def search_info_by_prompt(
     prompt: str,
 ):
     # Search
-    result_json = TypesenseService.search_videos_by_promts(prompt)
+    service = TypesenseService()
+    result_json = service.search_videos_by_promts(prompt)
     return result_json
 
 

@@ -3,11 +3,10 @@ import json
 from typing import Dict, Any
 
 from sqlalchemy import select
-from api.typesense_db import add_videos
 from datetime import datetime, timedelta
 from sqlalchemy.exc import NoResultFound
-from models.AudioDescription import AudioRecognition
-from models.Caption import Caption
+from .models.AudioDescription import AudioRecognition
+from .models.Caption import Caption
 # from api.s3 import s3
 import traceback
 
@@ -21,9 +20,36 @@ async def analyze_requests(
     description: str,
     **kwargs: Any,
 ):
-    video_intervals = caption_instance.shot_transit(url)
     db = TypesenseService()
 
+    video_intervals = caption_instance.shot_transit(url)
+    # # Mock Data
+    # video_intervals = [
+    #     {
+    #         "interval": "0:12:6",
+    #         "caption": "Caption Text",
+    #         "ocr": "ocr Text",
+    #         "obj": "obj Text"
+    #     }
+    # ]
+
+    output_item = process_video_results(url, description, video_intervals)
+    db.update_videos(
+        output_item, {'filter_by': f'url:={url} && description:={description}'})
+
+    audio_intervals = transcribe_instance.audio_recognition(url)
+    # # Mock Data
+    # audio_intervals = [
+    #     {
+    #         "end_interval": "0:12:6",
+    #         "text": "transcribation text"
+    #     }
+    # ]
+    output_item = process_audio_results(url, description, audio_intervals)
+    db.add_videos(output_item)
+
+
+def process_video_results(url, description, video_intervals):
     start_time = datetime.min.time()
     end_time = datetime.min.time()
     output_item = {
@@ -37,15 +63,15 @@ async def analyze_requests(
     for i, item in enumerate(video_intervals):
         if i > 0:
             start_time = end_time
-        end_time = item["interval"]
+        end_time = datetime.strptime(item["interval"], "%H:%M:%S")
         output_item["content"] = "".join(
             [item["caption"], item["ocr"], item["obj"]])
-        output_item["start_stop_interval"].append(start_time.strftime(
-            "%H:%M:%S") + "-" + end_time.strftime("%H:%M:%S"))
-    db.update_videos(
-        output_item, {'filter_by': f'url:={url} && description:={description}'})
+        output_item["start_stop_interval"].append(
+            str(start_time) + "-" + str(end_time))
+    return output_item
 
-    audio_intervals = transcribe_instance.audio_recognition(url)
+
+def process_audio_results(url, description, audio_intervals):
     end_time = datetime.min.time()
     start_time = datetime.min.time()
     output_item = {
@@ -59,8 +85,8 @@ async def analyze_requests(
     for i, item in enumerate(audio_intervals):
         if i > 0:
             start_time = end_time
-        end_time = item["end_interval"]
+        end_time = datetime.strptime(item["end_interval"], "%H:%M:%S")
         output_item["content"].append(item["text"])
-        output_item["start_stop_interval"].append(start_time.strftime(
-            "%H:%M:%S") + "-" + end_time.strftime("%H:%M:%S"))
-    db.add_videos(output_item)
+        output_item["start_stop_interval"].append(
+            str(start_time) + "-" + str(end_time))
+    return output_item

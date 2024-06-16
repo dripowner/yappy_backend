@@ -23,7 +23,7 @@ class TypesenseService:
             self.client.collections.create({
                 "name": "videos",
                 "fields": [
-                    {"name": "url", "type": "string"},
+                    {"name": "url", "type": "string", "facet": True},
                     {"name": "interval_type", "type": "string"},
                     {"name": "description", "type": "string"},
                     {"name": "content", "type": "string[]"},
@@ -32,12 +32,12 @@ class TypesenseService:
                 ],
             })
         except Exception as e:
-            # # TODO: This drop all data after reboot
-            # try:
-            #     self.client.collections['videos'].delete()
-            #     self.create_collections()
-            # except Exception as e:
-            #     pass
+            # TODO: This drop all data after reboot
+            try:
+                self.client.collections['videos'].delete()
+                self.create_collections()
+            except Exception as e:
+                pass
             pass
 
     def retrieve_videos_collection(self):
@@ -85,8 +85,9 @@ class TypesenseService:
         result_json = videos_collect.documents.search(
             {
                 'q': prompt,
-                'query_by': ["description", "content"],
-                'filter_by': 'status:=Done'
+                'query_by': "description,content",
+                'filter_by': 'status:=Done',
+                'group_by': 'url'
             },
         )
         return result_json
