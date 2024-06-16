@@ -9,3 +9,8 @@
 | description        | string     | Описание видео                                         |
 | content            | string[]   | Содержимое видео (массив строк)                        |
 | start_stop_interval| string[]   | Интервалы начала и окончания в формате "ЧЧ:ММ:СС-ЧЧ:ММ:СС"|
+
+## Get started
+```
+docker compose up --build
+```
