@@ -1,0 +1,10 @@
+FROM python:3.10
+COPY requirements/requirements.txt /requirements.txt
+RUN pip install --no-cache-dir --upgrade -r /requirements.txt
+COPY api/gunicorn_conf.py /gunicorn_conf.py
+COPY ./api ./api
+COPY ./Dockerfiles ./Dockerfiles
+COPY ./requirements ./requirements
+COPY ./worker ./worker
+COPY ./docker-compose.yml ./
+COPY ./.gitignore ./

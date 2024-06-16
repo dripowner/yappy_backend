@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+    # asset-server:
+    #     image: zenko/cloudserver
+    #     ports:
+    #         - 9000:8000
+    #     environment:
+    #       # Set this to 'mem' for non-persistent storage (useful for testing)
+    #         S3BACKEND: file
+    #         # AWS_DEFAULT_ACL: public-read
+    #         SCALITY_ACCESS_KEY_ID: abc123
+    #         SCALITY_SECRET_ACCESS_KEY: someSecretKey
+    #         SSL: 0
+    #         LISTEN_ADDR: 0.0.0.0
+    #       # Stops zenko/cloudserver from attempting to connect to Zenko Orbit (their cloud platform for managing their various services)
+    #         REMOTE_MANAGEMENT_DISABLE: 1
+    #     volumes:
+    #       - ./local-data/s3/data:/usr/src/app/localData
+    #       - ./local-data/s3/metadata:/usr/src/app/localMetadata
+
+    typesense:
+        image: typesense/typesense:26.0
+        restart: on-failure
+        ports:
+        - "8108:8108"
+        volumes:
+        - ./typesense-data:/data
+        command: '--data-dir /data --api-key=xyz --enable-cors'
+
+    api:
+        build:
+            dockerfile: Dockerfiles/DockerfileApi
+        # restart: unless-stopped
+        # links:
+        #     - "asset-server:server.com"
+        ports:
+            - "9080:9080"
+        environment:
+            PORT: 9080
+        depends_on:
+            postgres:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        command: gunicorn --conf api/gunicorn_conf.py -b 0.0.0.0:9080 -k uvicorn.workers.UvicornWorker api.main:app
+
+    postgres:
+        image: postgres:16
+        environment:
+            POSTGRES_USER: analyze_document
+            POSTGRES_PASSWORD: analyze_document
+            POSTGRES_DB: analyze_document
+        volumes:
+            - ./postgres:/var/lib/postgresql/data
+        healthcheck:
+            test: [ "CMD", "pg_isready", "-U", "analyze_document" ]
+            interval: 10s
+            timeout: 4s
+            retries: 5
+            start_period: 1s
+        restart: always
+
+    worker:
+        build:
+            context: .
+            dockerfile: Dockerfiles/DockerfileWorker
+        # restart: unless-stopped
+        command: arq worker.config.WorkerSettings.WorkerSettings
+        depends_on:
+            redis:
+                condition: service_healthy
+
+    redis:
+        image: redis
+        restart: always
+        volumes:
+            - ./redis/data:/data
+            - ./redis/redis.conf:/redis/redis.conf
+        expose:
+            - "6379"
+        healthcheck:
+            test: [ "CMD", "redis-cli", "ping" ]
+            interval: 10s
+            timeout: 3s
+            retries: 5
+            start_period: 1s
+        command: redis-server /redis/redis.conf
