@@ -62,7 +62,7 @@ def create_collections():
     # print(create_response)
 
 
-create_collections()
+# create_collections()
 
 # Retrieve the collection we just created
 
