@@ -35,7 +35,6 @@ class TypesenseService:
 
     def retrieve_videos_collection(self):
         retrieve_response = self.client.collections['videos'].retrieve()
-        print("videos", retrieve_response)
         return retrieve_response
 
     # Add a video
@@ -43,19 +42,24 @@ class TypesenseService:
     def add_videos(self, data: json):
         collect: Collection = self.client.collections['videos']
         res = collect.documents.create(data)
-        print(res)
+        return res
 
     # Upsert the same document
 
-    def update_videos(self, data: json):
+    def upsert_videos(self, data: json):
         collect: Collection = self.client.collections['videos']
         res = collect.documents.upsert(data)
-        print(res)
+        return res
 
     def import_videos(self, data: json):
         video_collect: Collection = self.client.collections['videos']
         res = video_collect.documents.import_(data)
-        print(res)
+        return res
+
+    def update_videos(self, data: json, params):
+        video_collect: Collection = self.client.collections['videos']
+        res = video_collect.documents.update(data, params=params)
+        return res
 
     # Search for documents in a collection
     def search(self, search_word, collect, field):

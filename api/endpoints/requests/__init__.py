@@ -9,6 +9,8 @@ from api.Asyncrq import asyncrq
 from fastapi_limiter.depends import RateLimiter
 from arq.jobs import Job
 import arq
+
+from api.typesense_db import TypesenseService
 # from api.s3 import s3
 
 router = APIRouter(
@@ -39,7 +41,9 @@ async def search_info_by_prompt(
 async def get_request_info_by_url(
     url: str,
 ):
-
+    service = TypesenseService()
+    results = service.search(url, 'videos', 'url')
+    print(results)
     results = ""
     return {
         "url": url,
@@ -52,14 +56,27 @@ async def get_request_info_by_url(
     status_code=status.HTTP_201_CREATED,
     response_description="The shedule path request has been successfully created. Please track the execution by job_id",
 )
-async def shedule_path_request(
+async def analyze_url_request(
     url: str,
     description: str,
 ):
+    service = TypesenseService()
+    video_data = {
+        "url": url,
+        "description": description,
+        "content": [],
+        "interval_type": "",
+        "content": [],
+        "start_stop_interval": [],
+        "status": "In_progress"
+    }
+
+    service.add_videos(video_data)
 
     job = await asyncrq.pool.enqueue_job(
         function="analyze_requests",
         url=url,
+        description=description,
     )
 
     info = await job.info()

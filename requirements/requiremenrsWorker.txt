@@ -5,3 +5,4 @@ pandas
 pydantic
 fastapi
 fastapi-users[sqlalchemy]
+typesense
