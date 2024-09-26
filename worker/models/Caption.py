@@ -9,46 +9,41 @@ from moviepy.editor import *
 import numpy as np
 import torch
 from transformers import (
-    AutoImageProcessor,
-    AutoTokenizer,
-    VisionEncoderDecoderModel
+    AutoProcessor,
+    AutoModelForCausalLM
 )
 
 class VideoCaptioningModel:
     def __init__(self):
-        self.image_processor = AutoImageProcessor.from_pretrained(
-            "MCG-NJU/videomae-large",
-            dtype=torch.float16
-        )
-        self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
-        self.model = VisionEncoderDecoderModel.from_pretrained(
-            "Neleac/timesformer-gpt2-video-captioning"
-        ).to("cuda")
+        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        self.torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-    def get_caption(self, cap):
-        # Извлекаем данные из объекта cv2.VideoCapture
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        seg_len = frame_count
-        clip_len = self.model.config.encoder.num_frames
-        indices = set(np.linspace(0, seg_len, num=clip_len, endpoint=False).astype(np.int64))
-        frames = []
-        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-        for i in range(frame_count):
-            ret, frame = cap.read()
-            if not ret:
-                break
-            if i in indices:
-                frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        gen_kwargs = {
-            "min_length": 16,
-            "max_length": 128,
-            "num_beams": 8,
-        }
-        pixel_values = self.image_processor(frames, return_tensors="pt").pixel_values.to("cuda")
-        tokens = self.model.generate(pixel_values, **gen_kwargs)
-        caption = self.tokenizer.batch_decode(tokens, skip_special_tokens=True)[0]
-        return caption, tokens
+        self.model = AutoModelForCausalLM.from_pretrained("microsoft/Florence-2-base", 
+                                                          torch_dtype=self.torch_dtype, 
+                                                          trust_remote_code=True).to(self.device)
+        self.processor = AutoProcessor.from_pretrained("microsoft/Florence-2-base", 
+                                                       trust_remote_code=True)
+
+    def get_caption(self, 
+                    image: np.array,
+                    task_prompt: str='<MORE_DETAILED_CAPTION>'):
+        height, width, _ = image.shape
+        inputs = self.processor(text=task_prompt, images=image, return_tensors="pt").to(self.device, torch.float16)
+        generated_ids = self.model.generate(
+            input_ids=inputs["input_ids"].cuda(),
+            pixel_values=inputs["pixel_values"].cuda(),
+            max_new_tokens=1024,
+            early_stopping=False,
+            do_sample=False,
+            num_beams=3,
+        )
+        generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+        parsed_answer = self.processor.post_process_generation(
+            generated_text,
+            task=task_prompt,
+            image_size=(width, height)
+        )
+        return parsed_answer[task_prompt]
 
 class Caption():
     def __init__(self):
@@ -56,58 +51,49 @@ class Caption():
         self.reader = easyocr.Reader(['en', 'ru'])
         self.yolo = YOLO("yolov8l.pt")
         self.yolo_names = self.yolo.names
+    
+    def calculate_histogram(self, frame):
+        # Convert frame to HSV color space
+        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        # Calculate histogram
+        hist = cv2.calcHist([hsv_frame], [0, 1], None, [50, 60], [0, 180, 0, 256])
+        # Normalize the histogram
+        cv2.normalize(hist, hist)
+        return hist.flatten()
 
-    def shot_transit(self, input_file):
+    def shot_transit(self, 
+                     input_file,
+                     threshold: int=0.7):
         cap = cv2.VideoCapture(input_file)
         fps = cap.get(cv2.CAP_PROP_FPS)
         duration = round(cap.get(cv2.CAP_PROP_FRAME_COUNT) / fps)
-        if duration < 60:
-            time_intervals = 5
-        elif duration >= 60:
-            time_intervals = 10
+
+        previous_hist = None
+        scene_changes = [0.0]
+        frame_list = []
         results = []
-        timecode = 0.0
-        ocr_text = ''
 
-        while timecode <= duration:
-            start_time = timecode
-            end_time = timecode + time_intervals
-            if end_time > duration:
-                end_time = duration
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            current_hist = self.calculate_histogram(frame)
+            if previous_hist is not None:
+                # Use correlation to compare histograms
+                similarity = cv2.compareHist(previous_hist, current_hist, cv2.HISTCMP_CORREL)
 
-            # Выполняем OCR на первой и предпоследней секунде
-            obj = []
-            for i in [1, 3, 5]:
-                frame_time = start_time + i
-                if frame_time > duration:
-                    frame_time = duration
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_time * fps)
-                ret, frame = cap.read()
+                # Scene change threshold
+                if similarity < threshold:
+                    scene_changes.append(round((int(cap.get(cv2.CAP_PROP_POS_FRAMES)) - 1) / fps, 2))  # Log time of new scene start
+                    frame_list.append(frame) # Add first scene frame to list
+            else:
+                frame_list.append(frame)
 
-                if not ret:
-                    break
-
-                try:
-                    cv2.imwrite("temp_img.jpg", frame)
-                    detection = self.yolo.predict("temp_img.jpg")
-
-                    for r in detection:
-                        for c in r.boxes.cls:
-                            if len(r.boxes.conf) > int(c):
-                                confidence = r.boxes.conf[int(c)]
-                                if self.yolo_names[int(c)] not in obj and confidence >= 0.9:
-                                    obj.append(self.yolo_names[int(c)])
-                except cv2.error as e:
-                    print(f"Error saving frame to file: {e}")
-
-                result = ' '.join([r[1] for r in self.reader.readtext(frame)])
-                distance = levenshtein.normalized_similarity(ocr_text, result)
-                if distance < 0.8:
-                    ocr_text = result
-                os.remove("temp_img.jpg")
-
-            caption = self.video_captioning_model.get_caption(cap)
-            results.append({'interval': end_time, 'caption': caption[0], 'ocr': ocr_text, 'obj': obj})
-            timecode += time_intervals
-
+            # Update previous histogram
+            previous_hist = current_hist
+        
+        # get captions of each scene
+        for frame, start_time in zip(frame_list, scene_changes):
+            caption = self.video_captioning_model.get_caption(frame)
+            results.append({'scene_start': start_time, 'caption': caption})
         return json.dumps(results, ensure_ascii=False)
